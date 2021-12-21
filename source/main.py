@@ -127,6 +127,17 @@ class Main():
 		angle = acos(costh)
 		if(ev3.front.y > ev3.center.y):
 			angle = pi + (pi - angle)
+
+		vector_1 = [vector.x, vector.y]
+		vector_2 = [1,0]
+		unit_vector_1 = vector_1 / np.linalg.norm(vector_1)
+		unit_vector_2 = vector_2 / np.linalg.norm(vector_2)
+		dot_product = np.dot(unit_vector_1, unit_vector_2)
+		theta = np.arccos(dot_product)
+
+		if(ev3.front.y > ev3.center.y):
+			theta = pi + (pi - theta)
+		print(theta)
 		return angle
 	
 	# Cria a imagem em formato de array numpy
@@ -170,7 +181,11 @@ class Main():
 				pose = Point()
 				pose.x = ev3.center.x
 				pose.y = ev3.center.y
-				pidResp, ev3telemetry = self.robotController.pidRun(graph, self.currentGoal, pose, ev3, False, self.experimentoAtivo)
+				if self.experimentoAtivo.parametros.tipoControlador == 2:
+					pidResp, ev3telemetry = self.robotController.pidRunLinearizationFeedback(graph, self.currentGoal, pose, ev3, False, self.experimentoAtivo)
+				else:
+					pidResp, ev3telemetry = self.robotController.pidRun(graph, self.currentGoal, pose, ev3, False, self.experimentoAtivo)
+				
 				self.ev3telemetry = ev3telemetry
 				self.saveExperimentoResults()
 				if(pidResp == True):
@@ -466,6 +481,7 @@ class Main():
 				try:
 					self.experimentoData.linearError = self.experimentoAtivo.linearError
 					self.experimentoData.angularError = self.experimentoAtivo.angularError
+					self.experimentoData.currentGoal = self.experimentoAtivo.currentGoal
 				except AttributeError:
 					print("")
 				print(vars(self.experimentoData))

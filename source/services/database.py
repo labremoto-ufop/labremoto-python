@@ -78,7 +78,7 @@ class Database():
     
     def getParametrosExperimentoApontar(self, codExperimento):
         queryString = "SELECT cod_sessao_experimento, algoritmo_busca, obstaculos, kp, kd, ki, "
-        queryString += "tamanho_mapa_busca, tamanho_area_seguranca, dt_criacao, objetivo_x, objetivo_y, heuristica "
+        queryString += "tamanho_mapa_busca, tamanho_area_seguranca, dt_criacao, objetivo_x, objetivo_y, heuristica, kp_ang, kd_ang, ki_ang, tipo_controlador "
         queryString += "FROM experimento_apontar_parametros WHERE cod_sessao_experimento = %s"
         cursor = self.conn.cursor()
         cursor.execute(queryString, (codExperimento, ))
@@ -98,6 +98,10 @@ class Database():
         parametros.objetivoX = result[9]
         parametros.objetivoY = result[10]
         parametros.heuristica = result[11]
+        parametros.kp_ang = result[12]
+        parametros.kd_ang = result[13]
+        parametros.ki_ang = result[14]
+        parametros.tipoControlador = result[15]
         return parametros
 
     def getParametrosExperimentoInstrucoes(self, codExperimento):

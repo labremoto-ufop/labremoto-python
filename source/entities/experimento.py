@@ -14,10 +14,14 @@ class SessaoExperimentoApontarParametros():
         def __init__(self):
                 self.codSessaoExperimento = 0
                 self.algoritmoBusca = 0
+                self.tipoControlador = 1
                 self.obstaculos = True
                 self.kp = 1
                 self.kd = 1
                 self.ki = 1
+                self.kp_ang = 1
+                self.kd_ang = 1
+                self.ki_ang = 1
                 self.objetivoX = 0
                 self.objetivoY = 0
                 self.tamanhoMapaBusca = 0

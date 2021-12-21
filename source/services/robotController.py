@@ -57,6 +57,8 @@ class RobotController:
     def initPid(self):
         self.lastAlpha = 0
         self.alphaSum = 0
+        self.lastAlphaAng = 0
+        self.alphaSumAng = 0
         self.startTime = datetime.now()
 
     # Roda o PID
@@ -80,35 +82,42 @@ class RobotController:
         kI = experimento.parametros.ki
         kPa = experimento.parametros.kp * 45
 
+        kPang = experimento.parametros.kp_ang
+        kDang = experimento.parametros.kd_ang
+        kIang = experimento.parametros.ki_ang
+
         # Seta as variaveis do experimento
 
         # Erro permitido pelo controlador
-        err = 100
+        err = 70
 
         # Calcula distancia e diferenca do angulo entre o robo e o objetivo
         rho = math.sqrt((goal.x - pose.x) ** 2 + (goal.y - pose.y) ** 2)
         alpha = self.getAlpha(ev3, goal)
+
+        # Grava os erros
+        experimento.linearError = rho
+        experimento.angularError = alpha
+        experimento.currentGoal = [goal.x,goal.y]
 
         # Verifica a condicao de parada
         if abs(rho) < err:
             return True, ()
 
         # Define velocidade linear
-        # if(lastFlag == True):
-        linearVelocity = -min(kP * rho, vMax)
-        # else:
-        #    linearVelocity = -vMax
+        self.alphaSum += rho
+        linearVelocity = (
+            kP * rho + kI * self.alphaSum + kDang * (rho - self.lastAlpha)
+        )
+        self.lastAlphaAng = alpha
+        linearVelocity = -min(linearVelocity, vMax)
 
         # Calcula velocidade angular
-        self.alphaSum += alpha
+        self.alphaSumAng += alpha
         angularVelocity = (
-            kPa * alpha + kI * self.alphaSum + kD * (alpha - self.lastAlpha)
+            kPang * alpha + kIang * self.alphaSumAng + kDang * (alpha - self.lastAlphaAng)
         )
-        self.lastAlpha = alpha
-
-        # Grava os erros
-        experimento.linearError = rho
-        experimento.angularError = alpha
+        self.lastAlphaAng = alpha
 
         # Aplica velocidade no robo
         # print("PosRobo (%s,%s) | Objetivo (%s,%s) | Vel Linear = %s | Vel Angular = %s"
@@ -121,6 +130,88 @@ class RobotController:
         twist.angular.x = 0
         twist.angular.y = 0
         twist.angular.z = -1 * angularVelocity
+        pub.publish(twist)
+        return False, (pose.x, pose.y, goal.x, goal.y, linearVelocity, angularVelocity)
+    
+    # Roda o PID
+    def pidRunLinearizationFeedback(self, graph, goal, pose, ev3, lastFlag, experimento):
+
+        # Verifica se nao excedeu o tempo limite, caso tenha lanca uma excecao
+        if datetime.now() > (self.startTime + timedelta(0, 50)):
+            raise Exception("Tempo de execucao excedido")
+
+        # Inicializa publisher para comandar a velocidade no ROS
+        pub = rospy.Publisher("cmd_vel", Twist, queue_size=1)
+
+        # Inicializa subscriber para ler a velocidade do ROS
+        subscriber = rospy.Subscriber("odom", Odometry, self.odometryCallback)
+
+        # Variaveis do controlador
+        vMax = 0.8
+        K = experimento.parametros.kp
+        d = 1
+
+        # Erro permitido pelo controlador
+        err = 70
+
+        vector = Point()
+        u = Point()
+        vector.x = ev3.front.x - ev3.center.x
+        vector.y = ev3.front.y - ev3.center.y
+        u.x = 1
+        u.y = 0
+        costh = (vector.x * u.x) / sqrt(vector.x**2 + vector.y ** 2) * sqrt(u.x**2)
+        theta = acos(costh)
+        if(ev3.front.y > ev3.center.y):
+            theta = pi + (pi - theta)
+
+        vector_1 = [vector.x, vector.y]
+        vector_2 = [1,0]
+        unit_vector_1 = vector_1 / numpy.linalg.norm(vector_1)
+        unit_vector_2 = vector_2 / numpy.linalg.norm(vector_2)
+        dot_product = numpy.dot(unit_vector_1, unit_vector_2)
+        theta = numpy.arccos(dot_product)
+        if(ev3.front.y > ev3.center.y):
+            theta = pi + (pi - theta)
+        print(theta)
+        theta = self.getAlpha(ev3, goal)
+
+        cosTheta = cos(theta)
+        sinTheta = sin(theta)
+
+        J = [
+            [cosTheta, sinTheta],
+            [-sinTheta/d, cosTheta/d]
+        ]
+
+        u = [K*(goal.x - pose.x), K*(goal.y - pose.y)]
+
+        linearVelocity = cosTheta*u[0] + sinTheta*u[1]
+        angularVelocity = (-sinTheta/d)*u[0] + (cosTheta/d)*u[1]
+
+        #if(ev3.front.y < ev3.center.y):
+        #    linearVelocity = linearVelocity*-1
+        # Verifica a condicao de parada
+        rho = math.sqrt((goal.x - pose.x) ** 2 + (goal.y - pose.y) ** 2)
+
+        if abs(rho) < err:
+            return True, ()
+
+        # Grava os erros
+        experimento.linearError = rho
+        experimento.currentGoal = [goal.x,goal.y]
+
+        # Aplica velocidade no robo
+        # print("PosRobo (%s,%s) | Objetivo (%s,%s) | Vel Linear = %s | Vel Angular = %s"
+        #% (pose.x,pose.y,goal.x,goal.y,linearVelocity,angularVelocity))
+        # print(linearVelocity, angularVelocity)
+        twist = Twist()
+        twist.linear.x = -1*linearVelocity
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z =  angularVelocity
         pub.publish(twist)
         return False, (pose.x, pose.y, goal.x, goal.y, linearVelocity, angularVelocity)
 
@@ -174,3 +265,14 @@ class RobotController:
     def odometryCallback(self, data):
         self.odometry = data
 
+
+    def matrixMulti(self, X, Y):
+        result = [[0,0]]
+        # iterate through rows of X
+        for i in range(len(X)):
+        # iterate through columns of Y
+            for j in range(len(Y[0])):
+                # iterate through rows of Y
+                for k in range(len(Y)):
+                    result[i][j] += X[i][k] * Y[k][j]
+        return result
