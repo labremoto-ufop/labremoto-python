@@ -129,7 +129,7 @@ class RobotController:
         twist.linear.z = 0
         twist.angular.x = 0
         twist.angular.y = 0
-        twist.angular.z = -1 * angularVelocity
+        twist.angular.z = angularVelocity
         pub.publish(twist)
         return False, (pose.x, pose.y, goal.x, goal.y, linearVelocity, angularVelocity)
     
@@ -154,30 +154,25 @@ class RobotController:
         # Erro permitido pelo controlador
         err = 70
 
+
         vector = Point()
         u = Point()
         vector.x = ev3.front.x - ev3.center.x
         vector.y = ev3.front.y - ev3.center.y
-        u.x = 1
+        u.x = (ev3.center.x + 1) - ev3.center.x
         u.y = 0
-        costh = (vector.x * u.x) / sqrt(vector.x**2 + vector.y ** 2) * sqrt(u.x**2)
-        theta = acos(costh)
-        if(ev3.front.y > ev3.center.y):
-            theta = pi + (pi - theta)
 
-        vector_1 = [vector.x, vector.y]
-        vector_2 = [1,0]
-        unit_vector_1 = vector_1 / numpy.linalg.norm(vector_1)
-        unit_vector_2 = vector_2 / numpy.linalg.norm(vector_2)
-        dot_product = numpy.dot(unit_vector_1, unit_vector_2)
-        theta = numpy.arccos(dot_product)
-        if(ev3.front.y > ev3.center.y):
-            theta = pi + (pi - theta)
-        print(theta)
-        theta = self.getAlpha(ev3, goal)
-
+        dot = (vector.x * u.x) + (vector.y * u.y)
+        det = (vector.x * u.x) - (vector.y * u.y)
+        
+        #theta = atan2(det,dot)
+        #theta = acos(((vector.x * u.x) + (vector.y * u.y)) / (sqrt(vector.x**2 + vector.y**2) * sqrt(u.x**2 + u.y**2)) )
+        theta = atan2(vector.y, vector.x) - atan2(u.y, u.x)
+        
         cosTheta = cos(theta)
         sinTheta = sin(theta)
+        print("cosTheta: " + str(cosTheta))
+        print("sinTheta: " + str(sinTheta))
 
         J = [
             [cosTheta, sinTheta],
@@ -189,7 +184,7 @@ class RobotController:
         linearVelocity = cosTheta*u[0] + sinTheta*u[1]
         angularVelocity = (-sinTheta/d)*u[0] + (cosTheta/d)*u[1]
 
-        #if(ev3.front.y < ev3.center.y):
+        #if(ev3.front.x > ev3.center.x):
         #    linearVelocity = linearVelocity*-1
         # Verifica a condicao de parada
         rho = math.sqrt((goal.x - pose.x) ** 2 + (goal.y - pose.y) ** 2)
@@ -206,7 +201,7 @@ class RobotController:
         #% (pose.x,pose.y,goal.x,goal.y,linearVelocity,angularVelocity))
         # print(linearVelocity, angularVelocity)
         twist = Twist()
-        twist.linear.x = -1*linearVelocity
+        twist.linear.x = -linearVelocity
         twist.linear.y = 0
         twist.linear.z = 0
         twist.angular.x = 0

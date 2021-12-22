@@ -12,7 +12,7 @@ import os
 import copy
 import types
 import traceback
-from math import atan2, acos, cos, sin, sqrt, pi
+from math import atan2, acos, cos, sin, sqrt, pi, degrees
 from imutils.video import VideoStream
 from services.robotController import RobotController
 from services.sessaoService import SessaoService
@@ -128,18 +128,32 @@ class Main():
 		if(ev3.front.y > ev3.center.y):
 			angle = pi + (pi - angle)
 
-		vector_1 = [vector.x, vector.y]
-		vector_2 = [1,0]
-		unit_vector_1 = vector_1 / np.linalg.norm(vector_1)
-		unit_vector_2 = vector_2 / np.linalg.norm(vector_2)
-		dot_product = np.dot(unit_vector_1, unit_vector_2)
-		theta = np.arccos(dot_product)
-
-		if(ev3.front.y > ev3.center.y):
-			theta = pi + (pi - theta)
-		print(theta)
+		self.getOrientacao(ev3)
 		return angle
 	
+	def getOrientacao(self, ev3):
+		vector = Point()
+		u = Point()
+		vector.x = ev3.front.x - ev3.center.x
+		vector.y = ev3.front.y - ev3.center.y
+		u.x = (ev3.center.x + 1) - ev3.center.x
+		u.y = 0
+		print(vector.x, vector.y, u.x, u.y)
+		#magVector = sqrt(vector.x**2 + vector.y**2)
+		#magU = sqrt(u.x**2 + u.y**2)
+		#dotProduct = (vector.x * u.x) + (vector.y * u.y)
+		#costh = dotProduct / (magVector * magU)
+		#theta = acos(costh)
+		dot = (vector.x * u.x) + (vector.y * u.y)
+		det = (vector.x * u.x) - (vector.y * u.y)
+		theta = atan2(det, dot)
+		thetaDgr = degrees(theta)
+		print("Theta: " + str(thetaDgr) + "dgr")
+		cosTheta = cos(theta)
+		sinTheta = sin(theta)
+		print("cosTheta: " + str(cosTheta))
+		print("sinTheta: " + str(sinTheta))
+		
 	# Cria a imagem em formato de array numpy
 	def createRawImage(self):
 		gWidth = 1280
@@ -324,7 +338,7 @@ class Main():
 			graph = self.createRawImage()
 			# Pega o frame da camera
 			frame = self.utils.getFrame(videoSource)
-
+			frame = cv2.flip(frame, 1)
 			# Altera o espaco para hsv
 			hsv = self.utils.frameToHsv(frame)
 			hsv2 = self.utils.frameToHsv(frame)
