@@ -58,6 +58,7 @@ class Main():
 			self.running = False
 			self.completedExperimento = False
 			self.completedExperimentoCounter = 0
+			self.updateImageCounter = 0
 			self.initDatabase()
 			self.sessaoService = SessaoService(self.db)
 			print("Inicializado com sucesso.\n\n")
@@ -265,6 +266,12 @@ class Main():
 	# Funcao para gerar uma imagem jpg - utilizada para o servidor web
 	#
 	def generateWebFrame(self, frame, graph):
+		self.updateImageCounter = self.updateImageCounter + 1
+		if self.updateImageCounter < 6:
+			return
+		else:
+			self.updateImageCounter = 0
+			
 		ret, buffer = cv2.imencode('.jpg', frame)
 		frameImg = buffer.tobytes()
 		file = open("static/imgVideo.jpg", "wb")
